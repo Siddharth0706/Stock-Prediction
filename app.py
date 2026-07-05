@@ -45,10 +45,30 @@ elif selected_page == "Educational Resources":
 # Input for stock ticker
 company = st.text_input('Enter Stock', 'META')
 
-# Download stock data
-data = yf.download(company, start=start, end=stop)
+try:
+    data = yf.download(
+        company,
+        start=start,
+        end=stop,
+        progress=False,
+        auto_adjust=True
+    )
 
-# Reset the index to convert the DateTime index to a column
+    if data.empty:
+        st.error("Yahoo Finance returned no data. Please try another stock symbol or try again later.")
+        st.stop()
+
+except Exception as e:
+    st.error(f"Failed to download stock data: {e}")
+    st.stop()
+
+if data.empty:
+    st.error(
+        "Unable to download stock data from Yahoo Finance. "
+        "This is usually a temporary rate limit. Please try again in a few minutes or use another ticker."
+    )
+    st.stop()
+
 data.reset_index(inplace=True)
 
 # Convert the 'Date' column to date without timezone
@@ -127,12 +147,25 @@ st.pyplot(plt)
 n_days = st.slider('Days of prediction:', 7,60)
 period = n_days
 
-# Predict forecast with Prophet.
-df_train = data[['Date','Close']]
+df_train = data[['Date', 'Close']].copy()
 df_train = df_train.rename(columns={"Date": "ds", "Close": "y"})
+df_train = df_train.dropna()
 
-m = Prophet()
-m.fit(df_train)
+if len(df_train) < 2:
+    st.warning("Not enough data available to generate a forecast.")
+else:
+    m = Prophet()
+    m.fit(df_train)
+
+    future = m.make_future_dataframe(periods=period)
+    forecast = m.predict(future)
+
+    st.subheader("Forecast Data")
+    st.write(forecast.tail())
+
+    fig1 = plot_plotly(m, forecast)
+    st.plotly_chart(fig1)
+
 future = m.make_future_dataframe(periods=period)
 forecast = m.predict(future)
 
