@@ -11,3 +11,4 @@ tensorflow==2.16.2
 keras==3.3.3
 ta==0.11.0
 prophet==1.1.5
+cmdstanpy==1.2.5
